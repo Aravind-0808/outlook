@@ -6,8 +6,8 @@
 <DefaultLocale>en-US</DefaultLocale>
 <DisplayName DefaultValue="ECG"/>
 <Description DefaultValue="The Outlook Mail Archive Plugin helps users save emails to a local folder for better organization and management."/>
-  <IconUrl DefaultValue="https://localhost:3000/assets/redmindlogo3.jpg"/>
-  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/ECG_Logo.jpg"/>
+  <IconUrl DefaultValue="https://www.contoso.com/assets/redmindlogo3.jpg"/>
+  <HighResolutionIconUrl DefaultValue="https://www.contoso.com/assets/ECG_Logo.jpg"/>
 <SupportUrl DefaultValue="https://redmindtechnologies.com/index.php/file-a-ticket/"/>
 <AppDomains>
 <AppDomain>https://redmindtechnologies.com/</AppDomain>

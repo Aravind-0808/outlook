@@ -26,9 +26,14 @@
        <!-- Input and Button in Same Line -->
        <div class="input-container">
         <input type="text" id="project-name" placeholder="Enter project name" />
-        <button onclick="saveEmail()">Save Email</button>
+        <button onclick="saveEmail()">Save Email</button> 
       </div>
-      <button onclick="listSavedEmails()">Show Saved Emails</button>
+      <div>
+        <p id="warning-message" style="color: red; display: none;margin-bottom: 20px;text-align: center;"></p>
+        <p id="status-message" style="color: green; display: none;margin-bottom: 20px;text-align: center;"></p>
+        
+     </div>
+      <button onclick="listSavedEmails()">Show Saved Project</button>
       <div id="email-history" style="display: none;">
         <table>
           <thead>

@@ -28,100 +28,124 @@ async function getEmailDetails() {
 
 // Convert email content to EML format and save (WITH ATTACHMENTS)
 async function saveEmail() {
-  const subject = document.getElementById("email-subject").textContent.trim();
-  const body = document.getElementById("email-body").innerHTML;
-  const projectName = document.getElementById("project-name").value.trim();
-  const cleanedSubject = subject.replace(/[^a-zA-Z0-9\s]/g, "");
-
-  if (!projectName) {
-    alert("Please enter a project name.");
-    return;
-  }
-
-  try {
-    // Ask user to pick the main directory
-    const directoryHandle = await window.showDirectoryPicker();
-    let projectFolder;
+    const subject = document.getElementById("email-subject").textContent.trim();
+    const body = document.getElementById("email-body").innerHTML;
+    const projectName = document.getElementById("project-name").value.trim();
+    const cleanedSubject = subject.replace(/[^a-zA-Z0-9\s]/g, ""); // Sanitize subject for filename
+    const statusMessage = document.getElementById("status-message"); // Get status message element
+  
+    statusMessage.style.display = "none"; // Hide previous messages
+  
+    if (!projectName) {
+      statusMessage.textContent = "Please enter a project name.";
+      statusMessage.style.color = "red";
+      statusMessage.style.display = "block";
+      return;
+    }
+  
     try {
-      projectFolder = await directoryHandle.getDirectoryHandle(projectName);
-    } catch {
-      projectFolder = await directoryHandle.getDirectoryHandle(projectName, { create: true });
-    }
-
-    // Fetch Email Details
-    const item = Office.context.mailbox.item;
-    const emailDate = new Date().toUTCString();
-    const from = item.sender ? item.sender.emailAddress : "unknown@domain.com";
-    const to = item.to ? item.to.map(t => t.emailAddress).join(", ") : "unknown@domain.com";
-
-    let attachmentParts = "";
-    let boundary = "----=_NextPart_000_001"; // Unique boundary for MIME parts
-
-    // Fetch and convert attachments
-    if (item.attachments && item.attachments.length > 0) {
-      await Promise.all(
-        item.attachments.map(async (attachment) => {
-          if (attachment.isInline) return; // Ignore inline images
-
-          return new Promise((resolve, reject) => {
-            item.getAttachmentContentAsync(attachment.id, async function (result) {
-              if (result.status === "succeeded") {
-                try {
-                  const base64Data = result.value.content;
-
-                  attachmentParts += `
---${boundary}
-Content-Type: ${attachment.contentType}; name="${attachment.name}"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="${attachment.name}"
-
-${base64Data}
-`;
-
-                  resolve();
-                } catch (err) {
-                  console.error(`Error processing attachment ${attachment.name}:`, err);
-                  reject(err);
+      const directoryHandle = await window.showDirectoryPicker();
+      let projectFolder;
+  
+      try {
+        projectFolder = await directoryHandle.getDirectoryHandle(projectName);
+      } catch {
+        projectFolder = await directoryHandle.getDirectoryHandle(projectName, { create: true });
+      }
+  
+      // **Check if file already exists**
+      for await (const file of projectFolder.values()) {
+        if (file.kind === "file" && file.name === `${cleanedSubject}.eml`) {
+          statusMessage.textContent = "The email is already saved in this folder!";
+          statusMessage.style.color = "red";
+          statusMessage.style.display = "block"; // Show warning message
+          return;
+        }
+      }
+  
+      // Fetch Email Details
+      const item = Office.context.mailbox.item;
+      const emailDate = new Date().toUTCString();
+      const from = item.sender ? item.sender.emailAddress : "unknown@domain.com";
+      const to = item.to ? item.to.map(t => t.emailAddress).join(", ") : "unknown@domain.com";
+  
+      let attachmentParts = "";
+      let boundary = "----=_NextPart_000_001"; // Unique boundary for MIME parts
+  
+      // Fetch and convert attachments
+      if (item.attachments && item.attachments.length > 0) {
+        await Promise.all(
+          item.attachments.map(async (attachment) => {
+            if (attachment.isInline) return; // Ignore inline images
+  
+            return new Promise((resolve, reject) => {
+              item.getAttachmentContentAsync(attachment.id, async function (result) {
+                if (result.status === "succeeded") {
+                  try {
+                    const base64Data = result.value.content;
+  
+                    attachmentParts += `
+  --${boundary}
+  Content-Type: ${attachment.contentType}; name="${attachment.name}"
+  Content-Transfer-Encoding: base64
+  Content-Disposition: attachment; filename="${attachment.name}"
+  
+  ${base64Data}
+  `;
+  
+                    resolve();
+                  } catch (err) {
+                    console.error(`Error processing attachment ${attachment.name}:`, err);
+                    reject(err);
+                  }
+                } else {
+                  console.error("Error fetching attachment:", result.error);
+                  reject(result.error);
                 }
-              } else {
-                console.error("Error fetching attachment:", result.error);
-                reject(result.error);
-              }
+              });
             });
-          });
-        })
-      );
+          })
+        );
+      }
+  
+      // Construct EML format with attachments
+      const emlContent = `From: ${from}
+  To: ${to}
+  Subject: ${subject}
+  Date: ${emailDate}
+  MIME-Version: 1.0
+  Content-Type: multipart/mixed; boundary="${boundary}"
+  
+  --${boundary}
+  Content-Type: text/html; charset=UTF-8
+  Content-Transfer-Encoding: quoted-printable
+  
+  ${body}
+  
+  ${attachmentParts}
+  --${boundary}--`;
+  
+      // **Save EML File**
+      const fileHandle = await projectFolder.getFileHandle(`${cleanedSubject}.eml`, { create: true });
+      const writableStream = await fileHandle.createWritable();
+      await writableStream.write(emlContent);
+      await writableStream.close();
+  
+      // **Show success message in the p tag**
+      statusMessage.textContent = "Email saved successfully";
+      statusMessage.style.color = "green";
+      statusMessage.style.display = "block";
+  
+    } catch (error) {
+      console.error("Error saving email:", error);
+      statusMessage.textContent = "An error occurred while saving the email.";
+      statusMessage.style.color = "red";
+      statusMessage.style.display = "block";
     }
-
-    // Construct EML format with attachments
-    const emlContent = `From: ${from}
-To: ${to}
-Subject: ${subject}
-Date: ${emailDate}
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="${boundary}"
-
---${boundary}
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-${body}
-
-${attachmentParts}
---${boundary}--
-`;
-
-    // Save EML File
-    const fileHandle = await projectFolder.getFileHandle(`${cleanedSubject}.eml`, { create: true });
-    const writableStream = await fileHandle.createWritable();
-    await writableStream.write(emlContent);
-    await writableStream.close();
-
-    alert("Email saved as .eml successfully with attachments!");
-  } catch (error) {
-    console.error("Error saving email:", error);
   }
-}
+  
+  
+
 
 // List Saved Emails
 async function listSavedEmails() {
