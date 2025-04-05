@@ -56,7 +56,7 @@ async function saveEmail() {
       // **Check if file already exists**
       for await (const file of projectFolder.values()) {
         if (file.kind === "file" && file.name === `${cleanedSubject}.eml`) {
-          statusMessage.textContent = "The email is already saved in this folder!";
+          statusMessage.textContent = "The email is already saved in this Project !";
           statusMessage.style.color = "red";
           statusMessage.style.display = "block"; // Show warning message
           return;
